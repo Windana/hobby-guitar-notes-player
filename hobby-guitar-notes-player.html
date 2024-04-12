@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Guitar Tab Animation with Generated Sounds</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            margin-top: 50px;
+        }
+
+        canvas {
+            border: 1px solid #000;
+            /* Makes the canvas boundaries visible */
+        }
+    </style>
+</head>
+
+<body>
+    <button id="startButton">Start</button>
+    <canvas id="guitarFretboard" width="1250" height="300"></canvas>
+
+    <script>
+        let audioCtx;
+
+        // Frequencies for the open strings, standard tuning EADGBE
+        const openStringFrequencies = [82.41, 110, 146.83, 196, 246.94, 329.63];
+        const strings = 6;
+        const frets = 22;
+        const stringSpacing = 40;
+        const fretSpacing = 50;
+        const nutWidth = 20;
+        const startOffset = 50;
+        const canvas = document.getElementById('guitarFretboard');
+        const ctx = canvas.getContext('2d');
+
+        document.getElementById('startButton').addEventListener('click', () => {
+            // Initialize AudioContext after user interaction
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            playNotes();
+        });
+
+        function getFrequency(string, fret) {
+            // Calculate frequency for a given string and fret
+            return openStringFrequencies[string - 1] * Math.pow(2, fret / 12);
+        }
+
+        // function playFrequency(frequency) {
+        //     if (!audioCtx) return;
+
+        //     const oscillator = audioCtx.createOscillator();
+        //     oscillator.type = 'sine'; // Sine wave for a simple tone
+        //     oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        //     oscillator.connect(audioCtx.destination);
+        //     oscillator.start();
+        //     oscillator.stop(audioCtx.currentTime + 0.5); // Play note for 0.5 seconds
+        // }
+
+        function playFrequency(frequency) {
+            if (!audioCtx) return;
+
+            const oscillator = audioCtx.createOscillator();
+            oscillator.type = 'sine'; // Sine wave for a simple tone
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+            const gainNode = audioCtx.createGain();
+            gainNode.gain.value = 2; // Increase or decrease to adjust volume. 1 is the default value.
+
+            oscillator.connect(gainNode); // Connect the oscillator to the gain node...
+            gainNode.connect(audioCtx.destination); // ...and the gain node to the destination
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5); // Play note for 0.5 seconds
+        }
+
+
+        // function drawFretboard() {
+        //     ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //     for (let i = 0; i < strings; i++) {
+        //         ctx.beginPath();
+        //         ctx.moveTo(startOffset, nutWidth + i * stringSpacing);
+        //         ctx.lineTo(canvas.width, nutWidth + i * stringSpacing);
+        //         ctx.stroke();
+        //     }
+        //     for (let j = 0; j <= frets; j++) {
+        //         ctx.beginPath();
+        //         ctx.lineWidth = j == 0 ? 8 : 2;
+        //         ctx.moveTo(startOffset + j * fretSpacing, 0);
+        //         ctx.lineTo(startOffset + j * fretSpacing, nutWidth + (strings - 1) * stringSpacing);
+        //         ctx.stroke();
+        //     }
+        //     ctx.beginPath();
+        //     ctx.lineWidth = 6;
+        //     ctx.moveTo(startOffset, 0);
+        //     ctx.lineTo(startOffset, nutWidth + (strings - 1) * stringSpacing);
+        //     ctx.stroke();
+        // }
+
+
+        function drawFretboard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const openStringNotes = ['E', 'A', 'D', 'G', 'B', 'E']; // Open string notes for standard tuning
+            const notesSequence = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+            // Function to get note name based on string and fret
+            function getNoteName(stringIndex, fretIndex) {
+                const openNote = openStringNotes[stringIndex];
+                const openNoteIndex = notesSequence.indexOf(openNote);
+                const noteIndex = (openNoteIndex + fretIndex) % notesSequence.length;
+                return notesSequence[noteIndex];
+            }
+
+            // Draw strings and open string notes
+            for (let i = 0; i < strings; i++) {
+                ctx.beginPath();
+                ctx.moveTo(startOffset, nutWidth + i * stringSpacing);
+                ctx.lineTo(canvas.width, nutWidth + i * stringSpacing);
+                ctx.stroke();
+            }
+
+            // Draw frets, fret numbers, and note names on each fret for each string
+            for (let j = 0; j <= frets; j++) {
+                ctx.beginPath();
+                ctx.lineWidth = j == 0 ? 8 : 2;
+                ctx.moveTo(startOffset + j * fretSpacing, 0);
+                ctx.lineTo(startOffset + j * fretSpacing, nutWidth + (strings - 1) * stringSpacing);
+                ctx.stroke();
+
+                // Draw fret numbers below the fretboard
+                if (j > 0) { // Skip the nut for fret numbers
+                    ctx.fillText(j, startOffset + j * fretSpacing - 5, nutWidth + strings * stringSpacing + 30);
+                }
+
+                // Draw note names on each string for this fret
+                for (let i = 0; i < strings; i++) {
+                    const noteName = getNoteName(i, j);
+                    ctx.font = '12px Arial';
+                    ctx.fillText(noteName, startOffset + j * fretSpacing - 17, nutWidth + i * stringSpacing - 5);
+                }
+            }
+
+            // Draw a visual representation of the nut
+            ctx.beginPath();
+            ctx.lineWidth = 6;
+            ctx.moveTo(startOffset, 0);
+            ctx.lineTo(startOffset, nutWidth + (strings - 1) * stringSpacing);
+            ctx.stroke();
+        }
+
+
+        function highlightNote(string, fret) {
+            drawFretboard();
+            const x = startOffset + fret * fretSpacing;
+            const y = nutWidth + (string - 1) * stringSpacing;
+
+            const frequency = getFrequency(string, fret);
+            playFrequency(frequency);
+
+            ctx.beginPath();
+            ctx.arc(x - 15, y, 10, 0, 2 * Math.PI);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+        }
+
+        function playNotes() {
+            // Example sequence of notes to be played
+            const notesSequence = [
+                // {string: 2, fret: 3, duration: 500}, //C
+                // {string: 3, fret: 0, duration: 500}, //D
+                // {string: 3, fret: 2, duration: 500}, //E
+                // {string: 3, fret: 3, duration: 500}, //F
+                // {string: 4, fret: 0, duration: 500}, //G
+                // {string: 4, fret: 2, duration: 500}, //A
+                // {string: 5, fret: 0, duration: 500}, //B
+                // {string: 5, fret: 1, duration: 500}, //C
+                // {string: 2, fret: 3, duration: 500},
+                // {string: 3, fret: 0, duration: 500},
+                // {string: 3, fret: 2, duration: 500},
+                // {string: 3, fret: 3, duration: 500},
+                // {string: 4, fret: 0, duration: 500},
+                // {string: 4, fret: 2, duration: 500},
+                // {string: 5, fret: 0, duration: 500},
+                // {string: 5, fret: 1, duration: 500},
+
+                { string: 2, fret: 3, duration: 1000 }, //C
+                { string: 2, fret: 3, duration: 500 }, //C
+                { string: 3, fret: 2, duration: 1000 }, //E
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 3, fret: 0, duration: 500 }, //D
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 3, fret: 0, duration: 500 }, //D
+                { string: 2, fret: 3, duration: 1500 }, //C
+
+                { string: 3, fret: 2, duration: 1000 }, //E
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 4, fret: 0, duration: 1000 }, //G
+                { string: 4, fret: 0, duration: 500 }, //G
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 4, fret: 0, duration: 500 }, //G
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 2, duration: 1500 }, //E
+
+                { string: 4, fret: 2, duration: 500 }, //A
+                { string: 4, fret: 2, duration: 500 }, //A
+                { string: 4, fret: 2, duration: 500 }, //A
+                { string: 4, fret: 0, duration: 500 }, //G
+                { string: 4, fret: 0, duration: 500 }, //G
+                { string: 4, fret: 0, duration: 500 }, //G
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 2, duration: 1500 }, //E
+
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 3, duration: 500 }, //F
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 3, fret: 0, duration: 500 }, //D
+                { string: 3, fret: 2, duration: 500 }, //E
+                { string: 3, fret: 0, duration: 500 }, //D
+                { string: 2, fret: 3, duration: 1500 }, //C
+
+                // {string: 3, fret: 0, duration: 500}, //D
+                // {string: 3, fret: 2, duration: 500}, //E
+                // {string: 3, fret: 3, duration: 500}, //F
+                // {string: 4, fret: 0, duration: 500}, //G
+                // {string: 4, fret: 2, duration: 500}, //A
+                // {string: 5, fret: 0, duration: 500}, //B
+                // {string: 5, fret: 1, duration: 500}, //C
+
+                // Add more notes here
+            ];
+
+            drawFretboard();
+            let totalTime = 0;
+            notesSequence.forEach(note => {
+                setTimeout(() => {
+                    highlightNote(note.string, note.fret);
+                }, totalTime);
+                totalTime += note.duration;
+            });
+        }
+    </script>
+</body>
+
+</html>
